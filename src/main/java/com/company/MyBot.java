@@ -1,23 +1,47 @@
 package com.company;
 
-import lombok.SneakyThrows;
+import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.TelegramBotsApi;
+import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
-import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
-import org.telegram.telegrambots.meta.api.objects.InputFile;
-import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.methods.updates.DeleteWebhook;
+import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import lombok.extern.slf4j.Slf4j;
 
+import com.company.model.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
+@Component
 public class MyBot extends TelegramLongPollingBot {
+    private TelegramBotsApi botsApi;
+    private DefaultBotSession botSession;
+
+    // CartItem class definition
+    public static class CartItem {
+        private int productId;
+        private int quantity;
+
+        public CartItem(int productId, int quantity) {
+            this.productId = productId;
+            this.quantity = quantity;
+        }
+
+        public int getProductId() { return productId; }
+        public int getQuantity() { return quantity; }
+        public void setQuantity(int quantity) { this.quantity = quantity; }
+    }
 
     // Mahsulotlar ro'yxati
     private final List<Product> products = Arrays.asList(
@@ -63,8 +87,69 @@ public class MyBot extends TelegramLongPollingBot {
     // Savat (har bir foydalanuvchi uchun)
     private final Map<Long, List<CartItem>> userCarts = new HashMap<>();
 
+    // Product class definition
+    public static class Product {
+        private int id;
+        private String name;
+        private int price;
+        private String imageUrl;
+        private String description;
+        private SubCategory subCategory;
+
+        public Product(int id, String name, int price, String imageUrl, String description, SubCategory subCategory) {
+            this.id = id;
+            this.name = name;
+            this.price = price;
+            this.imageUrl = imageUrl;
+            this.description = description;
+            this.subCategory = subCategory;
+        }
+
+        // Getters
+        public int getId() { return id; }
+        public String getName() { return name; }
+        public int getPrice() { return price; }
+        public String getImageUrl() { return imageUrl; }
+        public String getDescription() { return description; }
+        public SubCategory getSubCategory() { return subCategory; }
+        public MainCategory getMainCategory() { return subCategory.getMainCategory(); }
+    }
+
     public MyBot() {
         super("7919838399:AAHJZBOudGOlzWov-vpT0RLNXSkz7Kok7JI");
+        try {
+            botsApi = new TelegramBotsApi(DefaultBotSession.class);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+    
+
+    @PreDestroy
+    public void onShutdown() {
+        try {
+            if (botSession != null) {
+                botSession.stop();
+            }
+            log.info("Bot session stopped successfully");
+        } catch (Exception e) {
+            log.error("Error stopping bot session: ", e);
+        }
+    }
+
+    @PostConstruct
+    public void init() {
+        try {
+            // Delete webhook before starting the bot
+            execute(DeleteWebhook.builder().dropPendingUpdates(true).build());
+            
+            botSession = new DefaultBotSession();
+            botsApi = new TelegramBotsApi(DefaultBotSession.class);
+            botsApi.registerBot(this);
+            log.info("Bot successfully initialized");
+        } catch (TelegramApiException e) {
+            log.error("Error initializing bot: ", e);
+        }
     }
 
     @Override
@@ -72,70 +157,111 @@ public class MyBot extends TelegramLongPollingBot {
         return "https://t.me/Optom_parfyum_bot";
     }
 
-    @SneakyThrows
+    @Override
+    public String getBotToken() {
+        return "7919838399:AAHJZBOudGOlzWov-vpT0RLNXSkz7Kok7JI";
+    }
+
     @Override
     public void onUpdateReceived(Update update) {
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            handleTextMessage(update.getMessage());
-        } else if (update.hasCallbackQuery()) {
-            handleCallbackQuery(update.getCallbackQuery());
+        try {
+            if (update.hasMessage() && update.getMessage().hasText()) {
+                handleTextMessage(update.getMessage());
+            } else if (update.hasCallbackQuery()) {
+                handleCallbackQuery(update.getCallbackQuery());  // Add callback handling
+            }
+        } catch (Exception e) {
+            log.error("Error processing update: ", e);
         }
     }
 
-    @SneakyThrows
     private void handleTextMessage(Message message) {
-        long chatId = message.getChatId();
-        String text = message.getText();
+        try {
+            String text = message.getText();
+            long chatId = message.getChatId();
+            log.info("Received message: {} from chat: {}", text, chatId);
 
-        switch (text) {
-            case "/start":
-                sendWelcomeMessage(chatId);
-                break;
-            case "🛍️ Mahsulotlar":
-                showCategories(chatId);
-                break;
-            case "🛒 Savat":
-                showCart(chatId);
-                break;
-            case "📞 Aloqa":
-                showContact(chatId);
-                break;
-            case "ℹ️ Ma'lumot":
-                showInfo(chatId);
-                break;
-            default:
-                sendMessage(chatId, "Iltimos, menyudan tanlang 👇");
+            switch (text) {
+                case "/start":
+                    sendWelcomeMessage(chatId);  // Connect welcome message
+                    break;
+                case "🛍️ Mahsulotlar":
+                    showCategories(chatId);
+                    break;
+                case "🛒 Savat":
+                    showCart(chatId);  // Connect cart display
+                    break;
+                case "📞 Aloqa":
+                    handleContact(chatId);
+                    break;
+                case "ℹ️ Ma'lumot":
+                    showInfo(chatId);  // Connect info display
+                    break;
+                default:
+                    sendMessage(chatId, "Iltimos, menyudan tanlang 👇");
+            }
+        } catch (TelegramApiException e) {
+            log.error("Failed to handle message: ", e);
         }
     }
 
-    @SneakyThrows
-    private void handleCallbackQuery(CallbackQuery callbackQuery) {
+    // Add this new method to handle contact button separately
+    private void handleContact(long chatId) throws TelegramApiException {
+        SendMessage contactMessage = SendMessage.builder()
+            .chatId(chatId)
+            .text("📞 *Biz bilan bog'laning:*\n\n" +
+                  "📱 Telefon: +998 90 628 82 07\n" +
+                  "📱 Telegram: @optom\\_parfum\n" +
+                  "📧 Email: info@optomparfum.uz\n" +
+                  "🏢 Manzil: Farg'ona viloyati, Beshariq tumani\n\n" +
+                  "🕒 Ish vaqti: 7:00 - 18:00\n\n" +
+                  "💫 Optom xaridlar uchun alohida chegirmalar mavjud!")
+            .parseMode("MarkdownV2")
+            .replyMarkup(getMainKeyboard())
+            .build();
+
+        execute(contactMessage);
+        log.info("Contact message sent successfully to chat: {}", chatId);
+    }
+
+    private void handleCallbackQuery(CallbackQuery callbackQuery) throws TelegramApiException {
         String data = callbackQuery.getData();
         long chatId = callbackQuery.getMessage().getChatId();
 
         if (data.startsWith("main_category_")) {
-            String categoryName = data.split("_")[2];
+            String categoryName = data.substring("main_category_".length());
             MainCategory mainCategory = MainCategory.valueOf(categoryName);
             showSubCategories(chatId, mainCategory);
         } else if (data.startsWith("sub_category_")) {
-            String subCategoryName = data.split("_")[2];
+            String subCategoryName = data.substring("sub_category_".length());
             SubCategory subCategory = SubCategory.valueOf(subCategoryName);
             showProductsBySubCategory(chatId, subCategory);
         } else if (data.startsWith("add_to_cart_")) {
-            int productId = Integer.parseInt(data.split("_")[3]);
+            int productId = Integer.parseInt(data.substring("add_to_cart_".length()));
             addToCart(chatId, productId);
             sendMessage(chatId, "✅ Mahsulot savatga qo'shildi!");
         } else if (data.startsWith("back_to_sub_category_")) {
-            String subCategoryName = data.split("_")[4];
+            String subCategoryName = data.substring("back_to_sub_category_".length());
             SubCategory subCategory = SubCategory.valueOf(subCategoryName);
             showProductsBySubCategory(chatId, subCategory);
         } else if (data.equals("back_to_main_categories")) {
             showCategories(chatId);
+        } else if (data.equals("checkout")) {
+            checkout(chatId);
+        } else if (data.equals("clear_cart")) {
+            clearCart(chatId);
+        } else if (data.equals("back_to_products")) {
+            showCategories(chatId);
+        } else if (data.startsWith("product_")) {
+            int productId = Integer.parseInt(data.substring("product_".length()));
+            showProductDetail(chatId, productId);
+        } else if (data.startsWith("add_")) {
+            int productId = Integer.parseInt(data.substring("add_".length()));
+            addToCart(chatId, productId);
+            sendMessage(chatId, "✅ Mahsulot savatga qo'shildi!");
         }
     }
-
-    @SneakyThrows
-    private void sendWelcomeMessage(long chatId) {
+    private void sendWelcomeMessage(long chatId) throws TelegramApiException {
         String welcomeText = "🎉 *Premium Parfyumeriya Do'konimizga Xush Kelibsiz!* 🎉\n\n" +
                 "Bizda jahonning eng mashhur va original atirlar mavjud!\n\n" +
                 "🛍️ Mahsulotlarimizni ko'rish\n" +
@@ -152,19 +278,7 @@ public class MyBot extends TelegramLongPollingBot {
         execute(message);
     }
 
-    @SneakyThrows
-    private void showProducts(long chatId) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText("🛍️ *Bizning mahsulotlarimiz:*");
-        message.setParseMode("Markdown");
-        message.setReplyMarkup(getProductsKeyboard());
-
-        execute(message);
-    }
-
-    @SneakyThrows
-    private void showProductDetail(long chatId, int productId) {
+    private void showProductDetail(long chatId, int productId) throws TelegramApiException {
         Product product = products.stream()
                 .filter(p -> p.getId() == productId)
                 .findFirst()
@@ -192,9 +306,7 @@ public class MyBot extends TelegramLongPollingBot {
 
         execute(photo);
     }
-
-    @SneakyThrows
-    private void showCart(long chatId) {
+    private void showCart(long chatId) throws TelegramApiException {
         List<CartItem> cart = userCarts.getOrDefault(chatId, new ArrayList<>());
 
         if (cart.isEmpty()) {
@@ -226,21 +338,7 @@ public class MyBot extends TelegramLongPollingBot {
         execute(message);
     }
 
-    @SneakyThrows
-    private void showContact(long chatId) {
-        String contactText = "📞 *Biz bilan bog'laning:*\n\n" +
-                "📱 Telefon: +998 99 999 99 99\n" +
-                "📱 Telegram: @optom_parfum\n" +
-                "📧 Email: info@optomparfum.uz\n" +
-                "🏢 Manzil: Toshkent sh., Yakkasaroy tumani\n\n" +
-                "🕒 Ish vaqti: 9:00 - 18:00 (Dam olish - Yakshanba)\n\n" +
-                "💫 Optom xaridlar uchun alohida chegirmalar mavjud!";
-
-        sendMessage(chatId, contactText);
-    }
-
-    @SneakyThrows
-    private void showInfo(long chatId) {
+    private void showInfo(long chatId) throws TelegramApiException {
         String infoText = "ℹ️ *Do'kon haqida ma'lumot:*\n\n" +
                 "🎯 Bizning maqsadimiz - sizga premium parfyumeriya mahsulotlarini taqdim etish!\n\n" +
                 "✅ 100% Original mahsulotlar\n" +
@@ -260,32 +358,41 @@ public class MyBot extends TelegramLongPollingBot {
         sendMessage(chatId, infoText);
     }
 
+    // Add product to user's cart
     private void addToCart(long chatId, int productId) {
-        List<CartItem> cart = userCarts.computeIfAbsent(chatId, k -> new ArrayList<>());
-
-        CartItem existingItem = cart.stream()
-                .filter(item -> item.getProductId() == productId)
-                .findFirst()
-                .orElse(null);
-
+        List<CartItem> cart = userCarts.getOrDefault(chatId, new ArrayList<>());
+        CartItem existingItem = null;
+        for (CartItem item : cart) {
+            if (item.getProductId() == productId) {
+                existingItem = item;
+                break;
+            }
+        }
         if (existingItem != null) {
             existingItem.setQuantity(existingItem.getQuantity() + 1);
         } else {
             cart.add(new CartItem(productId, 1));
         }
-
-        Product product = getProductById(productId);
-        sendMessage(chatId, "✅ " + product.getName() + " savatga qo'shildi!");
+        userCarts.put(chatId, cart);
     }
-
 
     private void clearCart(long chatId) {
         userCarts.remove(chatId);
-        sendMessage(chatId, "🗑️ Savat tozalandi");
+        try {
+            sendMessage(chatId, "🗑️ Savat tozalandi");
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
     }
 
-    @SneakyThrows
-    private void checkout(long chatId) {
+    private Product getProductById(int productId) {
+        return products.stream()
+                .filter(p -> p.getId() == productId)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void checkout(long chatId) throws TelegramApiException {
         List<CartItem> cart = userCarts.get(chatId);
         if (cart == null || cart.isEmpty()) {
             sendMessage(chatId, "Savatingiz bo'sh!");
@@ -309,15 +416,7 @@ public class MyBot extends TelegramLongPollingBot {
         sendMessage(chatId, orderText);
     }
 
-    private Product getProductById(int id) {
-        return products.stream()
-                .filter(p -> p.getId() == id)
-                .findFirst()
-                .orElse(null);
-    }
-
-    @SneakyThrows
-    private void sendMessage(long chatId, String text) {
+    private void sendMessage(long chatId, String text) throws TelegramApiException {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(text);
@@ -328,7 +427,6 @@ public class MyBot extends TelegramLongPollingBot {
     private ReplyKeyboardMarkup getMainKeyboard() {
         ReplyKeyboardMarkup keyboard = new ReplyKeyboardMarkup();
         keyboard.setResizeKeyboard(true);
-
         List<KeyboardRow> rows = new ArrayList<>();
 
         KeyboardRow row1 = new KeyboardRow();
@@ -346,22 +444,6 @@ public class MyBot extends TelegramLongPollingBot {
         return keyboard;
     }
 
-    private InlineKeyboardMarkup getProductsKeyboard() {
-        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-
-        for (Product product : products) {
-            List<InlineKeyboardButton> row = new ArrayList<>();
-            InlineKeyboardButton button = new InlineKeyboardButton();
-            button.setText(product.getName() + " - " + String.format("%,d so'm", product.getPrice()));
-            button.setCallbackData("product_" + product.getId());
-            row.add(button);
-            rows.add(row);
-        }
-
-        keyboard.setKeyboard(rows);
-        return keyboard;
-    }
 
     private InlineKeyboardMarkup getProductDetailKeyboard(int productId) {
         InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
@@ -453,8 +535,7 @@ public class MyBot extends TelegramLongPollingBot {
     }
 
     // Kategoriyalarni ko'rsatish metodi
-    @SneakyThrows
-    private void showCategories(long chatId) {
+    private void showCategories(long chatId) throws TelegramApiException {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText("🛍️ *Asosiy kategoriyalardan birini tanlang:*");
@@ -463,9 +544,9 @@ public class MyBot extends TelegramLongPollingBot {
         execute(message);
     }
 
+    // Subkategoriya bo'yicha mahsulotlarni ko'rsatish metodi
     // Subkategoriyalarni ko'rsatish metodi
-    @SneakyThrows
-    private void showSubCategories(long chatId, MainCategory mainCategory) {
+    private void showSubCategories(long chatId, MainCategory mainCategory) throws TelegramApiException {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText("Quyidagi subkategoriyalardan birini tanlang:");
@@ -473,10 +554,8 @@ public class MyBot extends TelegramLongPollingBot {
         message.setReplyMarkup(getSubCategoriesKeyboard(mainCategory));
         execute(message);
     }
-
     // Subkategoriya bo'yicha mahsulotlarni ko'rsatish metodi
-    @SneakyThrows
-    private void showProductsBySubCategory(long chatId, SubCategory subCategory) {
+    private void showProductsBySubCategory(long chatId, SubCategory subCategory) throws TelegramApiException {
         List<Product> filteredProducts = products.stream()
                 .filter(p -> p.getSubCategory() == subCategory)
                 .collect(Collectors.toList());
@@ -523,122 +602,5 @@ public class MyBot extends TelegramLongPollingBot {
             sendPhoto.setReplyMarkup(keyboard);
             execute(sendPhoto);
         }
-    }
-
-    // Kategoriya bo'yicha mahsulotlarni ko'rsatish metodi
-    // Ushbu metod olib tashlandi, chunki Category tipi aniqlanmagan va ishlatilmayapti.
-
-    // Product sinfi
-    public static class Product {
-        private int id;
-        private String name;
-        private int price;
-        private String imageUrl;
-        private String description;
-        private SubCategory subCategory;
-
-        public Product(int id, String name, int price, String imageUrl, String description, SubCategory subCategory) {
-            this.id = id;
-            this.name = name;
-            this.price = price;
-            this.imageUrl = imageUrl;
-            this.description = description;
-            this.subCategory = subCategory;
-        }
-
-        // Getters
-        public int getId() { return id; }
-        public String getName() { return name; }
-        public int getPrice() { return price; }
-        public String getImageUrl() { return imageUrl; }
-        public String getDescription() { return description; }
-        public SubCategory getSubCategory() { return subCategory; }
-        public MainCategory getMainCategory() { return subCategory.getMainCategory(); }
-    }
-
-    // CartItem sinfi
-    public static class CartItem {
-        private int productId;
-        private int quantity;
-
-        public CartItem(int productId, int quantity) {
-            this.productId = productId;
-            this.quantity = quantity;
-        }
-
-        // Getters and Setters
-        public int getProductId() { return productId; }
-        public int getQuantity() { return quantity; }
-        public void setQuantity(int quantity) { this.quantity = quantity; }
-    }
-
-    // Add categories enum
-    public enum MainCategory {
-        PARFUMS("🌺 Parfyumlar (Atirlar)"),
-        FACE("👩 Yuz uchun parvarish"),
-        MAKEUP("💄 Makiyaj uchun"),
-        BODY("🧴 Tana uchun"),
-        HAIR("💇‍♀️ Soch uchun"),
-        HOME("🏠 Uy uchun"),
-        CLOTHES("👔 Kiyimlar uchun");
-
-        private final String displayName;
-
-        MainCategory(String displayName) {
-            this.displayName = displayName;
-        }
-
-        public String getDisplayName() {
-            return displayName;
-        }
-    }
-
-    public enum SubCategory {
-        // Parfyumlar uchun
-        MENS_PERFUME("👔 Erkaklar atiri", MainCategory.PARFUMS),
-        WOMENS_PERFUME("👗 Ayollar atiri", MainCategory.PARFUMS),
-        UNISEX_PERFUME("🔄 Unisex atirlar", MainCategory.PARFUMS),
-        MINI_PERFUME("🎁 Mini hajmlar", MainCategory.PARFUMS),
-        PERFUME_SET("📦 Atr to'plamlari", MainCategory.PARFUMS),
-
-        // Yuz uchun
-        FACE_CREAM("🧴 Yuz kremlari", MainCategory.FACE),
-        FACE_MASK("😷 Niqoblar", MainCategory.FACE),
-        FACE_CLEANER("🧼 Tozalovchi vositalar", MainCategory.FACE),
-
-        // Makiyaj uchun
-        LIPSTICK("💄 Lablar uchun", MainCategory.MAKEUP),
-        MASCARA("👁️ Ko'z uchun", MainCategory.MAKEUP),
-        FOUNDATION("🎨 Tonal kremlar", MainCategory.MAKEUP),
-
-        // Tana uchun
-        BODY_CREAM("🧴 Tana kremlari", MainCategory.BODY),
-        BODY_LOTION("🌸 Losyonlar", MainCategory.BODY),
-        BODY_OIL("💧 Moylar", MainCategory.BODY),
-
-        // Soch uchun
-        SHAMPOO("🧴 Shampunlar", MainCategory.HAIR),
-        HAIR_MASK("🎭 Soch niqoblari", MainCategory.HAIR),
-        HAIR_OIL("💧 Soch moylari", MainCategory.HAIR),
-
-        // Uy uchun
-        HOME_PERFUME("🏠 Uy atiri", MainCategory.HOME),
-        CANDLES("🕯️ Aromali shamlar", MainCategory.HOME),
-        DIFFUSERS("🎋 Diffuzorlar", MainCategory.HOME),
-
-        // Kiyimlar uchun
-        CLOTHES_PERFUME("👕 Kiyim atiri", MainCategory.CLOTHES),
-        FRESHENERS("🌸 Yangilatgichlar", MainCategory.CLOTHES);
-
-        private final String displayName;
-        private final MainCategory mainCategory;
-
-        SubCategory(String displayName, MainCategory mainCategory) {
-            this.displayName = displayName;
-            this.mainCategory = mainCategory;
-        }
-
-        public String getDisplayName() { return displayName; }
-        public MainCategory getMainCategory() { return mainCategory; }
     }
 }
