@@ -15,33 +15,61 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class MyBot extends TelegramLongPollingBot {
 
     // Mahsulotlar ro'yxati
     private final List<Product> products = Arrays.asList(
-            new Product(1, "Erkaklar klassik ko'ylagi", 150000, "https://images.unsplash.com/photo-1621072156002-e2fccdc0b176", "Yuqori sifatli erkaklar ko'ylagi"),
-            new Product(2, "Ayollar bluzasi", 120000, "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1", "Zamonaviy dizayndagi ayollar bluzasi"),
-            new Product(3, "Jin shim", 200000, "https://images.unsplash.com/photo-1541840031508-326b77c9a17e", "Klassik jin shim"),
-            new Product(4, "Ayollar ko'ylagi", 180000, "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446", "Chiroyli ayollar ko'ylagi"),
-            new Product(5, "Erkaklar futbolkasi", 80000, "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab", "Sport va kundalik uchun futbolka"),
-            new Product(6, "Ayollar jinsi", 160000, "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1", "Moda jinsi"),
-            new Product(7, "Erkaklar kostyumi", 450000, "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d", "Rasmiy marosimlar uchun kostyum"),
-            new Product(8, "Ayollar yubkasi", 100000, "https://images.unsplash.com/photo-1583496661160-fb5886a13d14", "Zamonaviy yubka"),
-            new Product(9, "Erkaklar sportivka", 250000, "https://images.unsplash.com/photo-1556821840-3a63f95609a7", "Sport kiyimi to'plami"),
-            new Product(10, "Ayollar kurtka", 280000, "https://images.unsplash.com/photo-1551028719-00167b16eac5", "Qish uchun issiq kurtka")
+            // PARFUMS category
+            new Product(1, "Chanel Blue", 450000, "https://i.imgur.com/parfum1.jpg",
+                    "💫 Erkaklar uchun premium atir\n🏭 Original\n⚖️ 100ml\n📦 Optom narx: 400,000", SubCategory.MENS_PERFUME),
+            new Product(2, "Dior J'adore", 520000, "https://i.imgur.com/parfum2.jpg",
+                    "💫 Ayollar uchun premium atir\n🏭 Original\n⚖️ 100ml\n📦 Optom narx: 470,000", SubCategory.WOMENS_PERFUME),
+            new Product(3, "Versace Eros", 380000, "https://i.imgur.com/parfum3.jpg",
+                    "💫 Unisex atir\n🏭 Original\n⚖️ 100ml\n📦 Optom narx: 350,000", SubCategory.UNISEX_PERFUME),
+
+            // FACE category
+            new Product(4, "The Ordinary Serum", 180000, "https://i.imgur.com/face1.jpg",
+                    "🧴 Yuz uchun serum\n✨ Vitamin C\n⚖️ 30ml\n📦 Optom narx: 150,000", SubCategory.FACE_CREAM),
+            new Product(5, "Clinique Cream", 250000, "https://i.imgur.com/face2.jpg",
+                    "🧴 Namlovchi krem\n✨ 72h hydration\n⚖️ 50ml\n📦 Optom narx: 220,000", SubCategory.FACE_CREAM),
+
+            // MAKEUP category
+            new Product(6, "MAC Lipstick", 150000, "https://i.imgur.com/makeup1.jpg",
+                    "💄 Matt lablar uchun\n🎨 Ruby Woo\n⚖️ 3.5g\n📦 Optom narx: 130,000", SubCategory.LIPSTICK),
+            new Product(7, "Maybelline Mascara", 120000, "https://i.imgur.com/makeup2.jpg",
+                    "👁️ Suv o'tkazmaydigan\n⚫ Qora rang\n⚖️ 10ml\n📦 Optom narx: 100,000", SubCategory.MASCARA),
+
+            // BODY category
+            new Product(8, "Nivea Body Milk", 80000, "https://i.imgur.com/body1.jpg",
+                    "🧴 Tana uchun sut\n✨ 48h namlik\n⚖️ 400ml\n📦 Optom narx: 70,000", SubCategory.BODY_LOTION),
+            new Product(9, "Bio Oil", 120000, "https://i.imgur.com/body2.jpg",
+                    "💧 Universal moy\n✨ Stretch belgilar uchun\n⚖️ 200ml\n📦 Optom narx: 100,000", SubCategory.BODY_OIL),
+
+            // HAIR category
+            new Product(10, "L'Oreal Shampoo", 90000, "https://i.imgur.com/hair1.jpg",
+                    "🧴 Professional shampun\n✨ Barcha soch turlari uchun\n⚖️ 500ml\n📦 Optom narx: 80,000", SubCategory.SHAMPOO),
+
+            // HOME category
+            new Product(11, "Zara Home Diffuser", 200000, "https://i.imgur.com/home1.jpg",
+                    "🏠 Xona uchun diffuzor\n🌸 Black Vanilla\n⚖️ 200ml\n📦 Optom narx: 180,000", SubCategory.DIFFUSERS),
+
+            // CLOTHES category
+            new Product(12, "Lenor Fresh", 45000, "https://i.imgur.com/clothes1.jpg",
+                    "👕 Kiyimlar uchun yangilatgich\n✨ Spring aroma\n⚖️ 250ml\n📦 Optom narx: 40,000", SubCategory.FRESHENERS)
     );
 
     // Savat (har bir foydalanuvchi uchun)
     private final Map<Long, List<CartItem>> userCarts = new HashMap<>();
 
     public MyBot() {
-        super("8064135953:AAGOzgCOdq_81YmaqNdkDareIuM12DDfQz4");
+        super("7919838399:AAHJZBOudGOlzWov-vpT0RLNXSkz7Kok7JI");
     }
 
     @Override
     public String getBotUsername() {
-        return "https://t.me/message_sender_uzbot";
+        return "https://t.me/Optom_parfyum_bot";
     }
 
     @SneakyThrows
@@ -64,7 +92,7 @@ public class MyBot extends TelegramLongPollingBot {
                 sendWelcomeMessage(chatId);
                 break;
             case "🛍️ Mahsulotlar":
-                showProducts(chatId);
+                showCategories(chatId);
                 break;
             case "🛒 Savat":
                 showCart(chatId);
@@ -85,32 +113,35 @@ public class MyBot extends TelegramLongPollingBot {
         String data = callbackQuery.getData();
         long chatId = callbackQuery.getMessage().getChatId();
 
-        if (data.startsWith("product_")) {
-            int productId = Integer.parseInt(data.split("_")[1]);
-            showProductDetail(chatId, productId);
-        } else if (data.startsWith("add_")) {
-            int productId = Integer.parseInt(data.split("_")[1]);
+        if (data.startsWith("main_category_")) {
+            String categoryName = data.split("_")[2];
+            MainCategory mainCategory = MainCategory.valueOf(categoryName);
+            showSubCategories(chatId, mainCategory);
+        } else if (data.startsWith("sub_category_")) {
+            String subCategoryName = data.split("_")[2];
+            SubCategory subCategory = SubCategory.valueOf(subCategoryName);
+            showProductsBySubCategory(chatId, subCategory);
+        } else if (data.startsWith("add_to_cart_")) {
+            int productId = Integer.parseInt(data.split("_")[3]);
             addToCart(chatId, productId);
-        } else if (data.startsWith("remove_")) {
-            int productId = Integer.parseInt(data.split("_")[1]);
-            removeFromCart(chatId, productId);
-        } else if (data.equals("clear_cart")) {
-            clearCart(chatId);
-        } else if (data.equals("checkout")) {
-            checkout(chatId);
-        } else if (data.equals("back_to_products")) {
-            showProducts(chatId);
+            sendMessage(chatId, "✅ Mahsulot savatga qo'shildi!");
+        } else if (data.startsWith("back_to_sub_category_")) {
+            String subCategoryName = data.split("_")[4];
+            SubCategory subCategory = SubCategory.valueOf(subCategoryName);
+            showProductsBySubCategory(chatId, subCategory);
+        } else if (data.equals("back_to_main_categories")) {
+            showCategories(chatId);
         }
     }
 
     @SneakyThrows
     private void sendWelcomeMessage(long chatId) {
-        String welcomeText = "🎉 *Kiyim-Kechak Do'konimizga Xush Kelibsiz!* 🎉\n\n" +
-                "Bizda eng so'nggi moda va yuqori sifatli kiyimlar mavjud!\n\n" +
+        String welcomeText = "🎉 *Premium Parfyumeriya Do'konimizga Xush Kelibsiz!* 🎉\n\n" +
+                "Bizda jahonning eng mashhur va original atirlar mavjud!\n\n" +
                 "🛍️ Mahsulotlarimizni ko'rish\n" +
                 "🛒 Savatchangizni tekshirish\n" +
                 "📞 Biz bilan bog'lanish\n\n" +
-                "*Hoziroq xarid qilishni boshlang!*";
+                "*Hoziroq o'zingiz uchun eng yaxshi atirni tanlang!*";
 
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
@@ -198,11 +229,12 @@ public class MyBot extends TelegramLongPollingBot {
     @SneakyThrows
     private void showContact(long chatId) {
         String contactText = "📞 *Biz bilan bog'laning:*\n\n" +
-                "📱 Telefon: +998 90 123 45 67\n" +
-                "📱 Telegram: @kiyim_dokani\n" +
-                "📧 Email: info@kiyimdokani.uz\n" +
-                "🏢 Manzil: Toshkent sh., Amir Temur ko'chasi 15\n\n" +
-                "🕒 Ish vaqti: 9:00 - 21:00 (har kuni)";
+                "📱 Telefon: +998 99 999 99 99\n" +
+                "📱 Telegram: @optom_parfum\n" +
+                "📧 Email: info@optomparfum.uz\n" +
+                "🏢 Manzil: Toshkent sh., Yakkasaroy tumani\n\n" +
+                "🕒 Ish vaqti: 9:00 - 18:00 (Dam olish - Yakshanba)\n\n" +
+                "💫 Optom xaridlar uchun alohida chegirmalar mavjud!";
 
         sendMessage(chatId, contactText);
     }
@@ -210,18 +242,19 @@ public class MyBot extends TelegramLongPollingBot {
     @SneakyThrows
     private void showInfo(long chatId) {
         String infoText = "ℹ️ *Do'kon haqida ma'lumot:*\n\n" +
-                "🎯 Bizning maqsadimiz - sizga eng yaxshi kiyimlarni taqdim etish!\n\n" +
-                "✅ Yuqori sifat\n" +
-                "✅ Arzon narxlar\n" +
+                "🎯 Bizning maqsadimiz - sizga premium parfyumeriya mahsulotlarini taqdim etish!\n\n" +
+                "✅ 100% Original mahsulotlar\n" +
+                "✅ Qulay narxlar\n" +
                 "✅ Tez yetkazib berish\n" +
-                "✅ Kafolat beriladigan xizmat\n\n" +
+                "✅ Professional maslahat\n\n" +
                 "🚚 *Yetkazib berish:*\n" +
-                "• Toshkent bo'ylab - 20,000 so'm\n" +
-                "• Viloyatlarga - 35,000 so'm\n" +
-                "• 500,000 so'mdan yuqori xaridlarda - BEPUL!\n\n" +
+                "• Beshariq bo'ylab - 15,000 so'm\n" +
+                "• Viloyatlarga - 40,000 so'm\n" +
+                "• 1,000,000 so'mdan yuqori xaridlarda - BEPUL!\n\n" +
                 "💳 *To'lov usullari:*\n" +
                 "• Naqd pul\n" +
                 "• Plastik karta\n" +
+                "• Click, Payme\n" +
                 "• Bank o'tkazmasi";
 
         sendMessage(chatId, infoText);
@@ -245,13 +278,6 @@ public class MyBot extends TelegramLongPollingBot {
         sendMessage(chatId, "✅ " + product.getName() + " savatga qo'shildi!");
     }
 
-    private void removeFromCart(long chatId, int productId) {
-        List<CartItem> cart = userCarts.get(chatId);
-        if (cart != null) {
-            cart.removeIf(item -> item.getProductId() == productId);
-            sendMessage(chatId, "🗑️ Mahsulot savatdan olib tashlandi");
-        }
-    }
 
     private void clearCart(long chatId) {
         userCarts.remove(chatId);
@@ -381,6 +407,127 @@ public class MyBot extends TelegramLongPollingBot {
         return keyboard;
     }
 
+    private InlineKeyboardMarkup getMainCategoriesKeyboard() {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        for (MainCategory category : MainCategory.values()) {
+            List<InlineKeyboardButton> row = new ArrayList<>();
+            InlineKeyboardButton button = new InlineKeyboardButton();
+            button.setText(category.getDisplayName());
+            button.setCallbackData("main_category_" + category.name());
+            row.add(button);
+            rows.add(row);
+        }
+
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+
+    private InlineKeyboardMarkup getSubCategoriesKeyboard(MainCategory mainCategory) {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        // Filter subcategories by main category
+        Arrays.stream(SubCategory.values())
+                .filter(sub -> sub.getMainCategory() == mainCategory)
+                .forEach(subCategory -> {
+                    List<InlineKeyboardButton> row = new ArrayList<>();
+                    InlineKeyboardButton button = new InlineKeyboardButton();
+                    button.setText(subCategory.getDisplayName());
+                    button.setCallbackData("sub_category_" + subCategory.name());
+                    row.add(button);
+                    rows.add(row);
+                });
+
+        // Add back button
+        List<InlineKeyboardButton> backRow = new ArrayList<>();
+        InlineKeyboardButton backButton = new InlineKeyboardButton();
+        backButton.setText("⬅️ Orqaga");
+        backButton.setCallbackData("back_to_main_categories");
+        backRow.add(backButton);
+        rows.add(backRow);
+
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+
+    // Kategoriyalarni ko'rsatish metodi
+    @SneakyThrows
+    private void showCategories(long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText("🛍️ *Asosiy kategoriyalardan birini tanlang:*");
+        message.setParseMode("Markdown");
+        message.setReplyMarkup(getMainCategoriesKeyboard());
+        execute(message);
+    }
+
+    // Subkategoriyalarni ko'rsatish metodi
+    @SneakyThrows
+    private void showSubCategories(long chatId, MainCategory mainCategory) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText("Quyidagi subkategoriyalardan birini tanlang:");
+        message.setParseMode("Markdown");
+        message.setReplyMarkup(getSubCategoriesKeyboard(mainCategory));
+        execute(message);
+    }
+
+    // Subkategoriya bo'yicha mahsulotlarni ko'rsatish metodi
+    @SneakyThrows
+    private void showProductsBySubCategory(long chatId, SubCategory subCategory) {
+        List<Product> filteredProducts = products.stream()
+                .filter(p -> p.getSubCategory() == subCategory)
+                .collect(Collectors.toList());
+
+        if (filteredProducts.isEmpty()) {
+            SendMessage message = new SendMessage();
+            message.setChatId(chatId);
+            message.setText("❌ Bu kategoriyada hozircha mahsulotlar mavjud emas.");
+            message.setReplyMarkup(getSubCategoriesKeyboard(subCategory.getMainCategory()));
+            execute(message);
+            return;
+        }
+
+        for (Product product : filteredProducts) {
+            SendPhoto sendPhoto = new SendPhoto();
+            sendPhoto.setChatId(chatId);
+            sendPhoto.setPhoto(new InputFile(product.getImageUrl()));
+
+            String caption = String.format("*%s*\n\n%s\n\n💰 Narxi: %,d so'm\n\n",
+                    product.getName(), product.getDescription(), product.getPrice());
+
+            sendPhoto.setCaption(caption);
+            sendPhoto.setParseMode("Markdown");
+
+            InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+            List<InlineKeyboardButton> row1 = new ArrayList<>();
+            InlineKeyboardButton addToCartButton = new InlineKeyboardButton();
+            addToCartButton.setText("🛒 Savatga qo'shish");
+            addToCartButton.setCallbackData("add_to_cart_" + product.getId());
+            row1.add(addToCartButton);
+
+            List<InlineKeyboardButton> row2 = new ArrayList<>();
+            InlineKeyboardButton backButton = new InlineKeyboardButton();
+            backButton.setText("⬅️ Orqaga");
+            backButton.setCallbackData("back_to_sub_category_" + subCategory.name());
+            row2.add(backButton);
+
+            rows.add(row1);
+            rows.add(row2);
+            keyboard.setKeyboard(rows);
+
+            sendPhoto.setReplyMarkup(keyboard);
+            execute(sendPhoto);
+        }
+    }
+
+    // Kategoriya bo'yicha mahsulotlarni ko'rsatish metodi
+    // Ushbu metod olib tashlandi, chunki Category tipi aniqlanmagan va ishlatilmayapti.
+
     // Product sinfi
     public static class Product {
         private int id;
@@ -388,13 +535,15 @@ public class MyBot extends TelegramLongPollingBot {
         private int price;
         private String imageUrl;
         private String description;
+        private SubCategory subCategory;
 
-        public Product(int id, String name, int price, String imageUrl, String description) {
+        public Product(int id, String name, int price, String imageUrl, String description, SubCategory subCategory) {
             this.id = id;
             this.name = name;
             this.price = price;
             this.imageUrl = imageUrl;
             this.description = description;
+            this.subCategory = subCategory;
         }
 
         // Getters
@@ -403,6 +552,8 @@ public class MyBot extends TelegramLongPollingBot {
         public int getPrice() { return price; }
         public String getImageUrl() { return imageUrl; }
         public String getDescription() { return description; }
+        public SubCategory getSubCategory() { return subCategory; }
+        public MainCategory getMainCategory() { return subCategory.getMainCategory(); }
     }
 
     // CartItem sinfi
@@ -419,5 +570,75 @@ public class MyBot extends TelegramLongPollingBot {
         public int getProductId() { return productId; }
         public int getQuantity() { return quantity; }
         public void setQuantity(int quantity) { this.quantity = quantity; }
+    }
+
+    // Add categories enum
+    public enum MainCategory {
+        PARFUMS("🌺 Parfyumlar (Atirlar)"),
+        FACE("👩 Yuz uchun parvarish"),
+        MAKEUP("💄 Makiyaj uchun"),
+        BODY("🧴 Tana uchun"),
+        HAIR("💇‍♀️ Soch uchun"),
+        HOME("🏠 Uy uchun"),
+        CLOTHES("👔 Kiyimlar uchun");
+
+        private final String displayName;
+
+        MainCategory(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+    }
+
+    public enum SubCategory {
+        // Parfyumlar uchun
+        MENS_PERFUME("👔 Erkaklar atiri", MainCategory.PARFUMS),
+        WOMENS_PERFUME("👗 Ayollar atiri", MainCategory.PARFUMS),
+        UNISEX_PERFUME("🔄 Unisex atirlar", MainCategory.PARFUMS),
+        MINI_PERFUME("🎁 Mini hajmlar", MainCategory.PARFUMS),
+        PERFUME_SET("📦 Atr to'plamlari", MainCategory.PARFUMS),
+
+        // Yuz uchun
+        FACE_CREAM("🧴 Yuz kremlari", MainCategory.FACE),
+        FACE_MASK("😷 Niqoblar", MainCategory.FACE),
+        FACE_CLEANER("🧼 Tozalovchi vositalar", MainCategory.FACE),
+
+        // Makiyaj uchun
+        LIPSTICK("💄 Lablar uchun", MainCategory.MAKEUP),
+        MASCARA("👁️ Ko'z uchun", MainCategory.MAKEUP),
+        FOUNDATION("🎨 Tonal kremlar", MainCategory.MAKEUP),
+
+        // Tana uchun
+        BODY_CREAM("🧴 Tana kremlari", MainCategory.BODY),
+        BODY_LOTION("🌸 Losyonlar", MainCategory.BODY),
+        BODY_OIL("💧 Moylar", MainCategory.BODY),
+
+        // Soch uchun
+        SHAMPOO("🧴 Shampunlar", MainCategory.HAIR),
+        HAIR_MASK("🎭 Soch niqoblari", MainCategory.HAIR),
+        HAIR_OIL("💧 Soch moylari", MainCategory.HAIR),
+
+        // Uy uchun
+        HOME_PERFUME("🏠 Uy atiri", MainCategory.HOME),
+        CANDLES("🕯️ Aromali shamlar", MainCategory.HOME),
+        DIFFUSERS("🎋 Diffuzorlar", MainCategory.HOME),
+
+        // Kiyimlar uchun
+        CLOTHES_PERFUME("👕 Kiyim atiri", MainCategory.CLOTHES),
+        FRESHENERS("🌸 Yangilatgichlar", MainCategory.CLOTHES);
+
+        private final String displayName;
+        private final MainCategory mainCategory;
+
+        SubCategory(String displayName, MainCategory mainCategory) {
+            this.displayName = displayName;
+            this.mainCategory = mainCategory;
+        }
+
+        public String getDisplayName() { return displayName; }
+        public MainCategory getMainCategory() { return mainCategory; }
     }
 }
